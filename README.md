@@ -10,7 +10,6 @@ This project investigates the differences in vegetation phenology (start and end
 
 ### 📁 Directory Structure
 
-- `data/`: Input data including SOS/EOS raster files
 - `scripts/`: Python scripts for data processing and analysis
 - `gee_scripts/`: Google Earth Engine scripts for climate variable extraction
 - `plots.py`: Custom script to generate figures used in the paper
