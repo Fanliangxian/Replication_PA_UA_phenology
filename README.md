@@ -6,14 +6,13 @@ This repository contains the code and data used in the analysis for the paper:
 
 ## 🗂 Repository Overview
 
-This project investigates the differences in vegetation phenology (start and end of growing season, SOS and EOS) between protected areas (PAs) and urban areas (UAs) globally from 2001 to 2022.
+This project investigates the differences in vegetation phenology (start and end of growing season, SOS and EOS) between protected areas (PAs) and urban areas (UAs) across terrestrial regions north of the Tropic of Cancer from 2001 to 2022.
 
 ### 📁 Directory Structure
 
 - `data/`: Input data including SOS/EOS raster files
 - `scripts/`: Python scripts for data processing and analysis
 - `gee_scripts/`: Google Earth Engine scripts for climate variable extraction
-- `outputs/`: Processed data and results (optional)
 - `plots.py`: Custom script to generate figures used in the paper
 
 ---
@@ -23,15 +22,17 @@ This project investigates the differences in vegetation phenology (start and end
 All datasets used in this study are publicly available:
 
 - **MODIS NDVI (MOD13C1 V006)**  
-  Provided by NASA LP DAAC  
+  Provided by NASA LP DAAC
+  🔗https://lpdaac.usgs.gov/products/mod13c1v006/
+- **Phenology Raster Data (SOS/EOS, 2001–2022)**   
+  🔗 https://doi.org/10.5281/zenodo.15672142
 - **TerraClimate climate data**  
   University of California, Merced  
-  https://www.climatologylab.org/terraclimate.html  
+  🔗 https://www.climatologylab.org/terraclimate.html  
 - **Protected areas (WDPA)**  
-  https://www.protectedplanet.net/en/thematic-areas/wdpa?tab=WDPA  
+  🔗 https://www.protectedplanet.net/en/thematic-areas/wdpa?tab=WDPA  
 - **Urban area boundaries (UAs dataset)**  
-  https://data-starcloud.pcl.ac.cn/iearthdata/
-
+  🔗 https://data-starcloud.pcl.ac.cn/iearthdata/ 
 ---
 
 ## ⚙️ Main Scripts
