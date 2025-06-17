@@ -1,0 +1,111 @@
+'''
+
+Author: Fan Liangxian
+
+A GEE (Google Earth Engine) script：
+90-day sliding window statistical meteorological data of PAs
+
+'''
+
+// == Parameters ==
+var pa = ee.FeatureCollection('projects/phenoclimate/assets/PA');  
+var multiband_image = ee.Image('projects/phenoclimate/assets/eos_nor');    //  or EOS (eos_nor); We used ArcGIS Pro to merge raster data from each year into a multi-band tif data, then uploaded to GEE. 
+var terraclimate = ee.ImageCollection('IDAHO_EPSCOR/TERRACLIMATE');        // TerraClimate data
+
+var climate_vars = ['tmmx', 'tmmn', 'pr', 'srad', 'vpd', 'aet', 'pet', 'def', 'soil', 'swe', 'ro', 'vap', 'pdsi'];
+var days_back = 90;
+var years = ee.List.sequence(2001, 2022);
+
+// Due to the large number of protected areas, statistics need to be divided into three batches. Set batch range by ID. First: 0-7999；Second:8000-10999；Third: 11000-15051
+var batch_min = 0;
+var batch_max = 7999;
+
+var pa_batch = pa.filter(ee.Filter.and(
+  ee.Filter.gte('ID', batch_min),
+  ee.Filter.lte('ID', batch_max)
+));
+
+var all_features = ee.FeatureCollection([]);
+
+years.getInfo().forEach(function(year) {
+  var band_index = year - 2001;
+  var selected_image = multiband_image.select([band_index]).rename('Pheno');  // 'Pheno' = EOS or SOS
+
+  var pa_with_pheno = selected_image.sampleRegions({
+    collection: pa_batch,
+    properties: ['ID'],
+    scale: 5000,
+    geometries: true
+  }).filter(ee.Filter.notNull(['Pheno']));
+
+  var processed = pa_with_pheno.map(function(f) {
+    var doy = ee.Number(f.get('Pheno')).round();
+    var date = ee.Date.fromYMD(year, 1, 1).advance(doy.subtract(1), 'day');
+    var start_date = date.advance(-days_back, 'day');
+    var end_date = date;
+
+    var climate_window = terraclimate
+      .filterDate(start_date, end_date)
+      .select(climate_vars);
+
+    var climate_stats = ee.List(climate_vars.map(function(varname) {
+      var var_images = climate_window.select(varname);
+      var stat = (varname === 'pr') ?
+        var_images.sum().reduceRegion({reducer: ee.Reducer.mean(), geometry: f.geometry(), scale: 4638, bestEffort: true}).get(varname) :
+        var_images.mean().reduceRegion({reducer: ee.Reducer.mean(), geometry: f.geometry(), scale: 4638, bestEffort: true}).get(varname);
+      return [varname, stat];
+    }));
+
+    var stats_dict = ee.Dictionary(
+      climate_stats.iterate(function(pair, prev) {
+        pair = ee.List(pair);
+        prev = ee.Dictionary(prev);
+        var key = ee.String(pair.get(0));
+        var value = pair.get(1);
+        return ee.Algorithms.If(value, prev.set(key, value), prev);
+      }, ee.Dictionary({}))
+    );
+
+    // Convert units / assign variables
+    var tmmx = ee.Algorithms.If(stats_dict.contains('tmmx'), ee.Number(stats_dict.get('tmmx')).divide(10), null);
+    var tmmn = ee.Algorithms.If(stats_dict.contains('tmmn'), ee.Number(stats_dict.get('tmmn')).divide(10), null);
+    var pr_sum = ee.Algorithms.If(stats_dict.contains('pr'), stats_dict.get('pr'), null);
+    var srad_mean = ee.Algorithms.If(stats_dict.contains('srad'), stats_dict.get('srad'), null);
+    var vpd_mean = ee.Algorithms.If(stats_dict.contains('vpd'), stats_dict.get('vpd'), null);
+    var aet_mean = ee.Algorithms.If(stats_dict.contains('aet'), stats_dict.get('aet'), null);
+    var pet_mean = ee.Algorithms.If(stats_dict.contains('pet'), stats_dict.get('pet'), null);
+    var def_mean = ee.Algorithms.If(stats_dict.contains('def'), stats_dict.get('def'), null);
+    var soil_mean = ee.Algorithms.If(stats_dict.contains('soil'), stats_dict.get('soil'), null);
+    var swe_mean = ee.Algorithms.If(stats_dict.contains('swe'), stats_dict.get('swe'), null);
+    var ro_mean = ee.Algorithms.If(stats_dict.contains('ro'), stats_dict.get('ro'), null);
+    var vap_mean = ee.Algorithms.If(stats_dict.contains('vap'), stats_dict.get('vap'), null);
+    var pdsi_mean = ee.Algorithms.If(stats_dict.contains('pdsi'), stats_dict.get('pdsi'), null);
+
+    return f.set({
+      'Year': year,
+      'DOY': doy,
+      'tmmx_C': tmmx,
+      'tmmn_C': tmmn,
+      'pr_sum': pr_sum,
+      'srad_mean': srad_mean,
+      'vpd_mean': vpd_mean,
+      'aet_mean': aet_mean,
+      'pet_mean': pet_mean,
+      'def_mean': def_mean,
+      'soil_mean': soil_mean,
+      'swe_mean': swe_mean,
+      'ro_mean': ro_mean,
+      'vap_mean': vap_mean,
+      'pdsi_mean': pdsi_mean
+    });
+  });
+
+  all_features = all_features.merge(processed);
+});
+
+Export.table.toDrive({
+  collection: all_features,
+  description: 'PA_EOS_2001_2022_Batch_' + batch_min + '_' + batch_max,
+  fileNamePrefix: 'PA_EOS_2001_2022_Batch_' + batch_min + '_' + batch_max,
+  fileFormat: 'CSV'
+});

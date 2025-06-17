@@ -1,0 +1,89 @@
+'''
+
+Author: Fan Liangxian
+
+A GEE (Google Earth Engine) script：
+90-day sliding window statistical meteorological data of UAs
+
+'''
+
+// === Configuration: Region and Phenology ===
+var region = ee.FeatureCollection('projects/ee-liangxianfan0/assets/UA');  //
+var pheno_image = ee.Image('projects/ee-liangxianfan0/assets/sos_nor');   // or EOS (eos_nor); We used ArcGIS Pro to merge raster data from each year into a multi-band tif data, then uploaded to GEE. 
+var phase_label = 'SOS';  // Change to 'EOS' if needed
+var region_label = 'UA';  
+
+// === Variables ===
+var climate_vars = ['tmmx', 'tmmn', 'pr', 'srad', 'vpd', 'aet', 'pet', 'def', 'soil', 'swe', 'ro', 'vap', 'pdsi'];
+var climate_image = ee.ImageCollection('IDAHO_EPSCOR/TERRACLIMATE');
+
+var years = ee.List.sequence(2001, 2022);
+var days_back = 90;
+
+// === Initialize result collection ===
+var all_features = ee.FeatureCollection([]);
+
+// === Loop over years ===
+years.getInfo().forEach(function(year) {
+  var band_index = year - 2001;
+  var pheno = pheno_image.select([band_index]).rename('DOY');
+
+  var region_with_pheno = pheno.sampleRegions({
+    collection: region,
+    properties: ['ID'],
+    scale: 5000,
+    geometries: true
+  }).filter(ee.Filter.notNull(['DOY']));
+
+  var processed = region_with_pheno.map(function(f) {
+    var doy = ee.Number(f.get('DOY')).round();
+    var date = ee.Date.fromYMD(year, 1, 1).advance(doy.subtract(1), 'day');
+    var start_date = date.advance(-days_back, 'day');
+    var end_date = date;
+
+    var climate_window = climate_image
+      .filterDate(start_date, end_date)
+      .select(climate_vars);
+
+    // Get mean (or sum for pr)
+    var stats_list = ee.List(climate_vars.map(function(varname) {
+      var var_ic = climate_window.select(varname);
+      var stat = (varname === 'pr') ?
+        var_ic.sum().reduceRegion({reducer: ee.Reducer.mean(), geometry: f.geometry(), scale: 4638, bestEffort: true}).get(varname) :
+        var_ic.mean().reduceRegion({reducer: ee.Reducer.mean(), geometry: f.geometry(), scale: 4638, bestEffort: true}).get(varname);
+      return [varname, stat];
+    }));
+
+    var stats_dict = ee.Dictionary(stats_list.iterate(function(pair, prev) {
+      pair = ee.List(pair);
+      prev = ee.Dictionary(prev);
+      var key = ee.String(pair.get(0));
+      var value = pair.get(1);
+      return ee.Algorithms.If(value, prev.set(key, value), prev);
+    }, ee.Dictionary({})));
+
+    // Convert tmmx and tmmn to Celsius
+    var tmmx_C = ee.Algorithms.If(stats_dict.contains('tmmx'), ee.Number(stats_dict.get('tmmx')).divide(10), null);
+    var tmmn_C = ee.Algorithms.If(stats_dict.contains('tmmn'), ee.Number(stats_dict.get('tmmn')).divide(10), null);
+
+    return f.set(stats_dict)
+            .set({
+              'Year': year,
+              'DOY': doy,
+              'tmmx_C': tmmx_C,
+              'tmmn_C': tmmn_C,
+              'Phase': phase_label,
+              'RegionType': region_label
+            });
+  });
+
+  all_features = all_features.merge(processed);
+});
+
+// === Export final table ===
+Export.table.toDrive({
+  collection: all_features,
+  description: region_label + '_' + phase_label + '_climate_2001_2022',
+  fileNamePrefix: region_label + '_' + phase_label + '_climate_2001_2022',
+  fileFormat: 'CSV'
+});
