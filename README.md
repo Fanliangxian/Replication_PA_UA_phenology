@@ -12,7 +12,7 @@ This project investigates the differences in vegetation phenology (start and end
 
 - `scripts/`: Python scripts for data processing and analysis
 - `gee_scripts/`: Google Earth Engine scripts for climate variable extraction
-- `plots.py`: Custom script to generate figures used in the paper
+- `plots_scripts`: Custom script to generate figures used in the paper
 
 ---
 
