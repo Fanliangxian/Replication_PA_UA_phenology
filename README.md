@@ -23,6 +23,7 @@ All datasets used in this study are publicly available:
 - **MODIS NDVI (MOD13C1 V006)**  
   Provided by NASA LP DAAC
   🔗https://lpdaac.usgs.gov/products/mod13c1v006/
+  
 - **Phenology Raster Data (SOS/EOS, 2001–2022)**   
   🔗 https://doi.org/10.5281/zenodo.15672142
 - **TerraClimate climate data**  
