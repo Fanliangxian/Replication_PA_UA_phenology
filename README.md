@@ -24,7 +24,7 @@ All datasets used in this study are publicly available:
   Provided by NASA LP DAAC  
   🔗 https://lpdaac.usgs.gov/products/mod13c1v006/ 
 - **Phenology Raster Data (SOS/EOS, 2001–2022)**   
-  🔗 https://doi.org/10.5281/zenodo.15672142
+  🔗 https://figshare.com/articles/dataset/2001-2022_vegetation_phenology_dataset_from_MODIS_NDVI/29348318
 - **TerraClimate climate data**  
   University of California, Merced  
   🔗 https://www.climatologylab.org/terraclimate.html  
